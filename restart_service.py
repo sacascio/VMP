@@ -41,6 +41,7 @@ def getsmip(domain):
 
 	for rdata in answers:
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sock.settimeout(5)
 		result = sock.connect_ex((str(rdata),7001))
 		if result == 0:
    			return rdata
@@ -111,6 +112,9 @@ def main(argv):
 	
 	# Get SM IP used to query
 	smip = getsmip(domain)
+	if smip is None:
+		print "Could not determine service manager IP.  Exiting"
+		sys.exit(1)
 
 	# Squelch SSL warnings for no certificate
 	requests.packages.urllib3.disable_warnings()
