@@ -16,8 +16,9 @@ my %cs_list;
 my $retcode;
 my $description;
 my $ss_cs;
+my $sd_only_1pro = 0;
 
-getopts('hi:t:', \%opts);
+getopts('hi:t:s', \%opts);
 
 usage() if ( ! %opts );
 usage() if ( ! $opts{t} || !$opts{i} );
@@ -25,6 +26,11 @@ usage() if ( $opts{h} );
 
 $fname = $opts{i};
 $tname = $opts{t};
+
+if ( $opts{s} ) {
+	$sd_only_1pro = 1;
+}
+
 
 $fname = create_input_file($fname,$tname);
 
@@ -63,11 +69,16 @@ while(<FILE>) {
 		next;
 	}
 
-	if ( $type eq 'HD' ) { 
-		buildHDJsonFile($callsign,$sourceip,$mcip,$description);
-	} else {
+    if ( $sd_only_1pro == 0 ) {
+	#if ( $type eq 'HD' ) { 
+	if ( $type =~ /9004/ ) { 
 		buildSDJsonFile($callsign,$sourceip,$mcip,$description);
+	} else {
+		buildHDJsonFile($callsign,$sourceip,$mcip,$description);
 	}
+    } else {
+	buildSDJsonFile_1pro($callsign,$sourceip,$mcip,$description);
+    }
 	
 
 	## Add channel to V2P ##
@@ -247,6 +258,43 @@ close BUILD;
 
 }
 
+sub buildSDJsonFile_1pro {
+my $cs = shift;
+my $sourceip = shift;
+my $mc = shift;
+my $desc = shift;
+
+$str =  <<EOF;
+{
+  "id": "smtenant_0.smchannelsource.$cs",
+  "name": "$cs",
+  "type": "channelsources",
+  "externalId": "/v2/channelsources/$cs",
+  "properties": {
+    "channelId": "$cs",
+    "description": "$desc",
+    "streamType": "ATS",
+    "streams": [
+      {
+        "profileRef": "smtenant_0.smstreamprofile.300k",
+        "sources": [
+          {
+            "sourceUrl": "udp://$mc:9001",
+            "sourceIpAddr": "$sourceip"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+
+open(BUILD,">build");
+print BUILD "$str\n";
+close BUILD;
+
+}
+
 sub usage {
 
 print <<EOF;
@@ -255,6 +303,7 @@ The following parameters are required: i
 
 i:	Name of Excel 2007 input file ( ex. $0 -i file.xls )
 t:	Name of tab in the excel file to use
+s:	SD Build only (1 SD Profile, UDP 9001 )
 h:	Help message
 
 
@@ -307,8 +356,8 @@ if ( !defined $workbook ) {
                 my $c_description = $worksheet->get_cell( $row, 0 );
                 my $c_callsign    = $worksheet->get_cell( $row, 1 );
                 my $c_sourceip    = $worksheet->get_cell( $row, 4 );
-                my $c_type    = $worksheet->get_cell( $row, 7 );
-                my $c_mcip    = $worksheet->get_cell( $row, 8 );
+                my $c_type    = $worksheet->get_cell( $row, 3 );
+                my $c_mcip    = $worksheet->get_cell( $row, 2 );
                 next unless $c_callsign;
 
                 my $desc = $c_description->unformatted();
