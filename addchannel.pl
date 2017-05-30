@@ -2,8 +2,9 @@
 
 use strict;
 use Getopt::Std;
-use Spreadsheet::ParseExcel;
-# SDL Version 2 
+#use Spreadsheet::ParseExcel;
+use Spreadsheet::XLSX
+# SDL Version 2, using XLSX 
 my $callsign;
 my $sourceip;
 my $type;
@@ -33,6 +34,7 @@ if ( $opts{s} ) {
 
 
 $fname = create_input_file($fname,$tname);
+exit;
 
 open(FILE,$fname) or die "Can't open $fname\n";
 open(ELOG,">elog.txt") or die "Can't open elog.txt\n";
@@ -70,8 +72,8 @@ while(<FILE>) {
 	}
 
     if ( $sd_only_1pro == 0 ) {
-	#if ( $type eq 'HD' ) { 
-	if ( $type =~ /4004/ ) { 
+	if ( $type eq 'HD' ) { 
+	#if ( $type =~ /4004/ ) { 
 		buildSDJsonFile($callsign,$sourceip,$mcip,$description);
 	} else {
 		buildHDJsonFile($callsign,$sourceip,$mcip,$description);
@@ -354,9 +356,9 @@ if ( !defined $workbook ) {
         for my $row ( $row_min .. $row_max ) {
 
                 my $c_description = $worksheet->get_cell( $row, 0 );
-                my $c_callsign    = $worksheet->get_cell( $row, 1 );
-                my $c_sourceip    = $worksheet->get_cell( $row, 4 );
-                my $c_type    = $worksheet->get_cell( $row, 3 );
+                my $c_callsign    = $worksheet->get_cell( $row, 0 );
+                my $c_sourceip    = $worksheet->get_cell( $row, 5 );
+                my $c_type    = $worksheet->get_cell( $row, 4 );
                 my $c_mcip    = $worksheet->get_cell( $row, 2 );
                 next unless $c_callsign;
 
