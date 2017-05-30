@@ -3,7 +3,7 @@
 use strict;
 use Getopt::Std;
 #use Spreadsheet::ParseExcel;
-use Spreadsheet::XLSX
+use Spreadsheet::XLSX;
 # SDL Version 2, using XLSX 
 my $callsign;
 my $sourceip;
