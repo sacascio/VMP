@@ -3,7 +3,7 @@
 use strict;
 use Getopt::Std;
 use Spreadsheet::ParseExcel;
-# Optimum Version
+# SDL Version 1
 my $callsign;
 my $sourceip;
 my $type;
