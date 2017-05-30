@@ -71,7 +71,7 @@ while(<FILE>) {
 
     if ( $sd_only_1pro == 0 ) {
 	#if ( $type eq 'HD' ) { 
-	if ( $type =~ /9004/ ) { 
+	if ( $type =~ /4004/ ) { 
 		buildSDJsonFile($callsign,$sourceip,$mcip,$description);
 	} else {
 		buildHDJsonFile($callsign,$sourceip,$mcip,$description);
@@ -133,7 +133,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.450k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9001",
+            "sourceUrl": "udp://$mc:4001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -142,7 +142,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.600k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9002",
+            "sourceUrl": "udp://$mc:4002",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -151,7 +151,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1000k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9003",
+            "sourceUrl": "udp://$mc:4003",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -160,7 +160,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1500k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9004",
+            "sourceUrl": "udp://$mc:4004",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -169,7 +169,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.2200k",
  	"sources": [
           {
-            "sourceUrl": "udp://$mc:9005",
+            "sourceUrl": "udp://$mc:4005",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -178,7 +178,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.4000k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9006",
+            "sourceUrl": "udp://$mc:4006",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -215,7 +215,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.300k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9001",
+            "sourceUrl": "udp://$mc:4001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -224,7 +224,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.625k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9002",
+            "sourceUrl": "udp://$mc:4002",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -233,7 +233,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.925k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9003",
+            "sourceUrl": "udp://$mc:4003",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -242,7 +242,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1200k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9004",
+            "sourceUrl": "udp://$mc:4004",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -279,7 +279,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.300k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9001",
+            "sourceUrl": "udp://$mc:4001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -303,7 +303,7 @@ The following parameters are required: i
 
 i:	Name of Excel 2007 input file ( ex. $0 -i file.xls )
 t:	Name of tab in the excel file to use
-s:	SD Build only (1 SD Profile, UDP 9001 )
+s:	SD Build only (1 SD Profile, UDP 4001 )
 h:	Help message
 
 
