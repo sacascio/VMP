@@ -92,7 +92,7 @@ sub gettoken {
 my $host = shift;
 
 my $token_file = 'token.json';
-`scp admin\@$sm:/etc/opt/cisco/mos/public/$token_file $token_file`;
+`scp -o StrictHostKeyChecking=no  admin\@$sm:/etc/opt/cisco/mos/public/$token_file $token_file > /dev/null 2>&1`;
 
  
       my $json_text = do {
