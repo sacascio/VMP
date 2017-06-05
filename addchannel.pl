@@ -17,6 +17,7 @@ my $retcode;
 my $description;
 my $domain;
 my $sm;
+my $token;
 my $sd_only_1pro = 0;
 
 getopts('hi:t:s', \%opts);
@@ -33,18 +34,22 @@ if ( $opts{s} ) {
 	$sd_only_1pro = 1;
 }
 
-$sm = 'service-mgr.' + $domain;
+$sm = 'service-mgr.' . $domain;
+$token = gettoken($sm);
 $fname = create_input_file($fname,$tname);
 exit;
 
 open(FILE,$fname) or die "Can't open $fname\n";
 open(ELOG,">elog.txt") or die "Can't open elog.txt\n";
+open(CS,">callsigns") or die "Can't open callsigns\n";
 
 while(<FILE>) {
 	chomp($_);
 	($description,$callsign,$sourceip,$type,$mcip) = split(/,/, $_);
 
 	$type = uc($type);
+
+    print CS "$callsign\n";
 
     if ( $sd_only_1pro == 0 ) {
 	    if ( $type eq 'HD' ) { 
@@ -59,7 +64,7 @@ while(<FILE>) {
 	
 
 	## Add channel to V2P ##
-	$retcode = addchannel($callsign);
+	$retcode = addchannel($callsign,$token,$sm);
 
 	
 	if ( $retcode != 200 ) {
@@ -74,13 +79,18 @@ while(<FILE>) {
 
 close FILE;
 close ELOG;
+close CS;
 
 sub addchannel {
 # Token following the word Bearer comes from the PAM in /etc/opt/cisco/mos/public/token.json
 my $cs  = shift;
-`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
-my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
+my $t_token = shift;
+my $sm = shift;
 
+#`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
+my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
+
+return $res;
 
 }
 
@@ -276,7 +286,7 @@ The following parameters are required:
 i:	Name of Excel input file ( ex. $0 -i file.xlsx )
 t:	Name of tab in the excel file to use
 s:	SD Build only (1 SD Profile, UDP 4001 )
-d:  Domain name (ex. mos.hcvlny.cv.net)
+d:      Domain name (ex. mos.hcvlny.cv.net)
 h:	Help message
 
 
@@ -364,4 +374,24 @@ if ( $haserrors == 1 ) {
    return $filename;
 }
 
+}
+
+sub gettoken {
+my $host = shift;
+
+my $token_file = 'token.json';
+`scp admin\@$sm:/etc/opt/cisco/mos/public/$token_file $token_file`;
+
+
+      my $json_text = do {
+      open(my $json_fh, "<:encoding(UTF-8)", $token_file) or die("Can't open \$token_file\": $!\n");
+      local $/;
+      <$json_fh>
+      };
+
+             my $json = JSON->new;
+             my $data = $json->decode($json_text);
+             my $token =  $data->{tokenMap}{defaultToken}{name};
+             unlink($token_file);
+             return $token;
 }
