@@ -2,8 +2,8 @@
 
 use strict;
 use Getopt::Std;
-#use Spreadsheet::ParseExcel;
 use Spreadsheet::XLSX;
+
 # SDL Version 2, using XLSX 
 my $callsign;
 my $sourceip;
@@ -13,73 +13,48 @@ my $str;
 my %opts;
 my $fname;
 my $tname;
-my %cs_list;
 my $retcode;
 my $description;
-my $ss_cs;
+my $domain;
+my $sm;
 my $sd_only_1pro = 0;
 
 getopts('hi:t:s', \%opts);
 
 usage() if ( ! %opts );
-usage() if ( ! $opts{t} || !$opts{i} );
+usage() if ( ! $opts{t} || !$opts{i} || !$opts{d} );
 usage() if ( $opts{h} );
 
-$fname = $opts{i};
-$tname = $opts{t};
+$fname  = $opts{i};
+$tname  = $opts{t};
+$domain = $opts{d};
 
 if ( $opts{s} ) {
 	$sd_only_1pro = 1;
 }
 
-
+$sm = 'service-mgr.' + $domain;
 $fname = create_input_file($fname,$tname);
 exit;
 
 open(FILE,$fname) or die "Can't open $fname\n";
 open(ELOG,">elog.txt") or die "Can't open elog.txt\n";
-open(NEWCS,">callsigns") or die "Can't open callsigns\n";
-open(CSMAP,">csmapping") or die "Can't open csmapping\n";
 
 while(<FILE>) {
 	chomp($_);
 	($description,$callsign,$sourceip,$type,$mcip) = split(/,/, $_);
 
-	# Replace underscore with dash in callsign
-	$callsign =~ s/_/-/g;
-	$callsign =~ s/\s+//g;
-	$callsign =~ s/\+/-PLUS/g;
-	$callsign =~ s/\!//g;
-	$callsign =~ s/\&//g;
-	$ss_cs = $callsign;
-
-	if ( exists $cs_list{$callsign} ) {
-		$callsign = getuniquecs($callsign);
-	} else {
-		$cs_list{$callsign} = 1;
-	}
-
-	# Print out NEW callsign value - might be equal to callsign provided in file
-	# This is needed so that we can map the old callsign to new callsign values in the provided spreadsheet.
-	
-	print CSMAP "$ss_cs,$callsign\n";
-
 	$type = uc($type);
 
-	if ( $mcip !~ /\d+\.\d+\.\d+\.\d+/ or $sourceip !~ /\d+\.\d+\.\d+\.\d+/ ) {
-		print ELOG "$_\n";
-		next;
-	}
-
     if ( $sd_only_1pro == 0 ) {
-	if ( $type eq 'HD' ) { 
-	#if ( $type =~ /4004/ ) { 
-		buildSDJsonFile($callsign,$sourceip,$mcip,$description);
-	} else {
-		buildHDJsonFile($callsign,$sourceip,$mcip,$description);
-	}
+	    if ( $type eq 'HD' ) { 
+	    #if ( $type =~ /4004/ ) { 
+	    	buildSDJsonFile($callsign,$sourceip,$mcip,$description);
+	    } else {
+	    	buildHDJsonFile($callsign,$sourceip,$mcip,$description);
+	    }
     } else {
-	buildSDJsonFile_1pro($callsign,$sourceip,$mcip,$description);
+	    buildSDJsonFile_1pro($callsign,$sourceip,$mcip,$description);
     }
 	
 
@@ -89,9 +64,8 @@ while(<FILE>) {
 	
 	if ( $retcode != 200 ) {
 		print ELOG "CHANNEL CREATION FAILED: $_\n";
-	} else {
-		print NEWCS "$callsign\n";
-	}
+	} 
+	
 		
 	## Delete JSON build File	
 	unlink("build");
@@ -100,19 +74,15 @@ while(<FILE>) {
 
 close FILE;
 close ELOG;
-close NEWCS;
-close CSMAP;
 
 sub addchannel {
 # Token following the word Bearer comes from the PAM in /etc/opt/cisco/mos/public/token.json
 my $cs  = shift;
-`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2"  https://service-mgr.mos.hcvlny.cv.net:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
-my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2"  https://service-mgr.mos.hcvlny.cv.net:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
+`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
+my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
 
 
 }
-
-
 
 sub buildHDJsonFile {
 my $cs = shift;
@@ -301,11 +271,12 @@ sub usage {
 
 print <<EOF;
 
-The following parameters are required: i
+The following parameters are required: 
 
-i:	Name of Excel 2007 input file ( ex. $0 -i file.xls )
+i:	Name of Excel input file ( ex. $0 -i file.xlsx )
 t:	Name of tab in the excel file to use
 s:	SD Build only (1 SD Profile, UDP 4001 )
+d:  Domain name (ex. mos.hcvlny.cv.net)
 h:	Help message
 
 
@@ -314,28 +285,14 @@ EOF
 exit;
 }
 
-sub getuniquecs {
-my $cs = shift;
-my $v = 2;
-my $newcs = $cs;
-
-        while ( exists $cs_list{$newcs} ) {
-                $newcs = $cs . "-" . $v;
-                $v++;
-        }
-
-        $cs_list{$newcs} = 1;
-        return $newcs;
-
-}
-
 sub create_input_file {
 
 my $worksheet;
 my $fname = shift;
 my $tname = shift;
 my $filename = 'input_file_parsed.txt';
-
+my $haserrors = 0;
+my %cs_list;
 
 open(FILEN,">$filename") or die "Can't open $filename\n";
 
@@ -371,11 +328,40 @@ if ( !defined $workbook ) {
                 $desc =~ s/,//g;
 
                 print FILEN "$desc,$cs,$sip,$type,$mcip\n";
+
+                # Error checking.  Must check for unique callsigns and ensure other fields are valid
+                #
+	            if ( exists $cs_list{$cs} ) {
+		            print "$cs is NOT Unique\n";
+                    $haserrors = 1;
+	            } else {
+		            $cs_list{$cs} = 1;
+	            }
+	
+                if ( $mcip !~ /\d+\.\d+\.\d+\.\d+/ ) {
+		            print "Invalid Multicast IP $mcip.  Please correct\n";
+                    $haserrors = 1;
+	            }
+                if ( $sip !~ /\d+\.\d+\.\d+\.\d+/ ) {
+                    $haserrors = 1;
+		            print "Invalid Source IP $sip.  Please correct\n";
+	            }
+	
+                # Check for invalid characters
+	            if ( $cs =~ /_|\s+|\+|\!|\&/ ) {
+                    $haserrors = 1;
+                    print "Invalid character(s) found in callsign $cs.  Please correct\n";
+                }
         }
 
 
 close FILEN;
 
-return $filename;
+if ( $haserrors == 1 ) {
+    print "Errors found in file.  Correct the errors and re-execute. NO CHANGES MADE..Exiting..\n";
+    exit(2);
+} else {
+   return $filename;
+}
 
 }
