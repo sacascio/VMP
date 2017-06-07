@@ -116,7 +116,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.450k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4001",
+            "sourceUrl": "udp://$mc:5001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -125,7 +125,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.600k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4002",
+            "sourceUrl": "udp://$mc:5002",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -134,7 +134,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1000k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4003",
+            "sourceUrl": "udp://$mc:5003",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -143,7 +143,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1500k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4004",
+            "sourceUrl": "udp://$mc:5004",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -152,7 +152,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.2200k",
  	"sources": [
           {
-            "sourceUrl": "udp://$mc:4005",
+            "sourceUrl": "udp://$mc:5005",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -161,7 +161,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.4000k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4006",
+            "sourceUrl": "udp://$mc:5006",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -198,7 +198,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.300k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4001",
+            "sourceUrl": "udp://$mc:5001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -207,7 +207,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.625k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4002",
+            "sourceUrl": "udp://$mc:5002",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -216,7 +216,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.925k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4003",
+            "sourceUrl": "udp://$mc:5003",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -225,7 +225,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1200k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4004",
+            "sourceUrl": "udp://$mc:5004",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -262,7 +262,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.300k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:4001",
+            "sourceUrl": "udp://$mc:5001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -286,7 +286,7 @@ The following parameters are required:
 
 i:	Name of Excel input file ( ex. $0 -i file.xlsx )
 t:	Name of tab in the excel file to use
-s:	SD Build only (1 SD Profile, UDP 4001 )
+s:	SD Build only (1 SD Profile, UDP 5001 )
 d:      Domain name (ex. mos.hcvlny.cv.net)
 h:	Help message
 
@@ -323,11 +323,11 @@ if ( !defined $workbook ) {
 
         for my $row ( $row_min .. $row_max ) {
 
-                my $c_description = $worksheet->get_cell( $row, 0 );
-                my $c_callsign    = $worksheet->get_cell( $row, 0 );
-                my $c_sourceip    = $worksheet->get_cell( $row, 5 );
-                my $c_type    = $worksheet->get_cell( $row, 4 );
-                my $c_mcip    = $worksheet->get_cell( $row, 2 );
+                my $c_description = $worksheet->get_cell( $row, 7 );
+                my $c_callsign    = $worksheet->get_cell( $row, 6 );
+                my $c_sourceip    = $worksheet->get_cell( $row, 6 );
+                my $c_type    = $worksheet->get_cell( $row, 8 );
+                my $c_mcip    = $worksheet->get_cell( $row, 13 );
                 next unless $c_callsign;
 
                 my $desc = $c_description->unformatted();
