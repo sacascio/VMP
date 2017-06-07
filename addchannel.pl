@@ -3,7 +3,7 @@
 use strict;
 use JSON;
 use Getopt::Std;
-use Spreadsheet::XLSX;
+use Spreadsheet::ParseExcel;
 
 # SDL Version 2, using XLSX 
 my $callsign;
@@ -36,7 +36,7 @@ if ( $opts{s} ) {
 }
 
 $sm = 'service-mgr.' . $domain;
-$token = gettoken($sm);
+#$token = gettoken($sm);
 $fname = create_input_file($fname,$tname);
 exit;
 
@@ -88,7 +88,7 @@ my $cs  = shift;
 my $t_token = shift;
 my $sm = shift;
 
-#`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
+`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
 my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
 
 return $res;
@@ -304,6 +304,7 @@ my $tname = shift;
 my $filename = 'input_file_parsed.txt';
 my $haserrors = 0;
 my %cs_list;
+my $rownum;
 
 open(FILEN,">$filename") or die "Can't open $filename\n";
 
@@ -321,17 +322,16 @@ if ( !defined $workbook ) {
         my ( $row_min, $row_max ) = $worksheet->row_range();
         $row_min++;
 
-
         for my $row ( $row_min .. $row_max ) {
-
+                $rownum = $row + 1;
                 my $c_description = $worksheet->get_cell( $row, 7 );
                 my $c_callsign    = $worksheet->get_cell( $row, 6 );
-                my $c_sourceip    = $worksheet->get_cell( $row, 6 );
+                my $c_sourceip    = $worksheet->get_cell( $row, 20 );
                 my $c_type    = $worksheet->get_cell( $row, 8 );
-                my $c_mcip    = $worksheet->get_cell( $row, 13 );
+                my $c_mcip    = $worksheet->get_cell( $row, 20 );
                 next unless $c_callsign;
-
-                my $desc = $c_description->unformatted();
+               
+                my $desc = $c_description->unformatted(); 
                 my $cs   = $c_callsign->unformatted();
                 my $sip  = $c_sourceip->unformatted();
                 my $type = $c_type->unformatted();
@@ -340,30 +340,37 @@ if ( !defined $workbook ) {
                 $desc =~ s/,//g;
 
                 print FILEN "$desc,$cs,$sip,$type,$mcip\n";
-
+                
+                if ( $cs eq "" ) {
+                    print "No callsign defined on line $rownum\n";
+                }
                 # Error checking.  Must check for unique callsigns and ensure other fields are valid
                 #
+
 	            if ( exists $cs_list{$cs} ) {
-		            print "$cs is NOT Unique\n";
+		            print "$cs is NOT Unique, row $rownum \n";
                     $haserrors = 1;
 	            } else {
-		            $cs_list{$cs} = 1;
+                    if ( $cs ne "" ) {
+		                $cs_list{$cs} = 1;
+                    }
 	            }
 	
                 if ( $mcip !~ /\d+\.\d+\.\d+\.\d+/ ) {
-		            print "Invalid Multicast IP $mcip.  Please correct\n";
+		            print "Invalid Multicast IP $mcip, row $rownum.  Please correct\n";
                     $haserrors = 1;
 	            }
                 if ( $sip !~ /\d+\.\d+\.\d+\.\d+/ ) {
                     $haserrors = 1;
-		            print "Invalid Source IP $sip.  Please correct\n";
+		            print "Invalid Source IP $sip, row $rownum.  Please correct\n";
 	            }
 	
                 # Check for invalid characters
 	            if ( $cs =~ /_|\s+|\+|\!|\&/ ) {
                     $haserrors = 1;
-                    print "Invalid character(s) found in callsign $cs.  Please correct\n";
+                    print "Invalid character(s) found in callsign $cs, row $rownum.  Please correct\n";
                 }
+
         }
 
 

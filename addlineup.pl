@@ -68,7 +68,7 @@ close BUILD;
 # Token following the word Bearer comes from the PAM in /etc/opt/cisco/mos/public/token.json
 `curl -H "Authorization: Bearer $token" -ks https://$sm:8043/v2/channellineups/$sitename -H Content-Type:application/json -X POST -d \@build`;
 #`curl -H "Authorization: Bearer $token" -ks https://$sm:8043/v2/channellineups/$sitename -H Content-Type:application/json -X POST -d \@build`;
-#`curl -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2" -ks https://$sm:8043/v2/channellineups/$sitename -H Content-Type:application/json -X PUT -d \@build`;
+`curl -H "Authorization: Bearer $token" -ks https://$sm:8043/v2/channellineups/$sitename -H Content-Type:application/json -X PUT -d \@build`;
 
 unlink("build");
 
