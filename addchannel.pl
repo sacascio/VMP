@@ -21,7 +21,7 @@ my $sm;
 my $token;
 my $sd_only_1pro = 0;
 
-getopts('hi:t:s', \%opts);
+getopts('hi:t:sd:', \%opts);
 
 usage() if ( ! %opts );
 usage() if ( ! $opts{t} || !$opts{i} || !$opts{d} );
@@ -309,6 +309,7 @@ open(FILEN,">$filename") or die "Can't open $filename\n";
 
 my $parser   = Spreadsheet::ParseExcel->new();
 my $workbook = $parser->parse($fname);
+
 
 if ( !defined $workbook ) {
     die $parser->error(), ".\n";
