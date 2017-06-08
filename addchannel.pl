@@ -348,11 +348,11 @@ if ( !defined $workbook ) {
                 #
 
 	            if ( exists $cs_list{$cs} ) {
-		            print "$cs is NOT Unique, row $rownum \n";
+		            print "$cs is NOT Unique, rows $rownum,$cs_list{$cs} \n";
                     $haserrors = 1;
 	            } else {
                     if ( $cs ne "" ) {
-		                $cs_list{$cs} = 1;
+		                $cs_list{$cs} = $rownum;
                     }
 	            }
 	
