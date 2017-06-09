@@ -36,9 +36,9 @@ if ( $opts{s} ) {
 }
 
 $sm = 'service-mgr.' . $domain;
-#$token = gettoken($sm);
+$token = gettoken($sm);
 $fname = create_input_file($fname,$tname);
-exit;
+
 
 open(FILE,$fname) or die "Can't open $fname\n";
 open(ELOG,">elog.txt") or die "Can't open elog.txt\n";
