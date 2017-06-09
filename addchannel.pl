@@ -62,15 +62,22 @@ while(<FILE>) {
     } else {
 	    buildSDJsonFile_1pro($callsign,$sourceip,$mcip,$description);
     }
-	
 
-	## Add channel to V2P ##
-	$retcode = addchannel($callsign,$token,$sm);
+    # if channel exists, skip
+    $retcode = channel_exists($callsign,$token,$sm);
+
+    if ( $retcode != 200 ) {
+	    ## If channel does not exist, add channel to V2P ##
+	    $retcode = addchannel($callsign,$token,$sm);
 
 	
-	if ( $retcode != 200 ) {
-		print ELOG "CHANNEL CREATION FAILED: $_\n";
-	} 
+        	if ( $retcode != 200 ) {
+	        	print ELOG "CHANNEL CREATION FAILED: $_\n";
+	        } 
+    
+    } else {
+        print "Channel $callsign already exists in the system..Skipping...\n";
+    }
 	
 		
 	## Delete JSON build File	
@@ -94,6 +101,20 @@ my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $
 return $res;
 
 }
+
+sub channel_exists {
+
+my $cs  = shift;
+my $t_token = shift;
+my $sm = shift;
+
+
+my $res = `curl -w "%{http_code}" -o /dev/null -H "Authorization: Bearer $t_token" -ks https://$sm:8043/v2/channelsources/$cs `;
+
+return $res;
+
+}
+
 
 sub buildHDJsonFile {
 my $cs = shift;
