@@ -5,7 +5,7 @@ use JSON;
 use Getopt::Std;
 use Spreadsheet::ParseExcel;
 
-# SDL Version 2, using XLSX 
+# SDL Version 2, using XLS
 my $callsign;
 my $sourceip;
 my $type;
@@ -305,7 +305,7 @@ print <<EOF;
 
 The following parameters are required: 
 
-i:	Name of Excel input file ( ex. $0 -i file.xlsx )
+i:	Name of Excel input file ( ex. $0 -i file.xls )
 t:	Name of tab in the excel file to use
 s:	SD Build only (1 SD Profile, UDP 5001 )
 d:      Domain name (ex. mos.hcvlny.cv.net)
