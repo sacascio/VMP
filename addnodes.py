@@ -9,7 +9,6 @@ import os
 import pwd
 import dns.resolver
 
-<<<<<<< HEAD
 
 # Script to add nodes to VMP
 # Prepared by Salvatore Cascio (Cisco)
@@ -134,7 +133,8 @@ def main(argv):
 
 if __name__ == '__main__':
     main(sys.argv[1:])
-=======
+
+
 # Script to restart services from CLI
 # Prepared by Salvatore Cascio (Cisco)
 # March 29, 2017
@@ -260,4 +260,4 @@ def main(argv):
 
 if __name__ == '__main__':
 	main(sys.argv[1:])
->>>>>>> origin/sdl
+
