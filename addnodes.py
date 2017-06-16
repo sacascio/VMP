@@ -16,7 +16,7 @@ import dns.resolver
 # Version 1
 #
 
-def getJSONPayload(node,mgmt,din,dout,type,desc):
+def getJSONPayload(node,mgmt,din,dout,wtype,desc):
    
     jData = {}
     jData["name"] = node
@@ -24,7 +24,7 @@ def getJSONPayload(node,mgmt,din,dout,type,desc):
     jData["type"] = "nodes"        
     jData["externalId"] = "/v2/regions/region-0/nodes/%s" % node
     jData["properties"] = { "description" : desc, "adminState" :"maintenance", "zoneRef" : " smtenant_system.smzone.zone1", "aic" : None }
-    jData["properties"].update({ "image" : { "imgTag" : type, "personality" : "worker", "version" : "2.8"} })
+    jData["properties"].update({ "image" : { "imgTag" : wtype, "personality" : "worker", "version" : "2.8"} })
     jData["properties"].update({"interfaces" : [{"type" : "mgmt","inet" : mgmt},{"type" : "data-in","inet" : din},{"type" : "data-out","inet" : dout}]})
     
     return jData     
@@ -124,10 +124,10 @@ def main(argv):
             mgmt = entry[1]
             din  = entry[2]
             dout = entry[3]
-            type = entry[4]
+            wtype = entry[4]
             desc = entry[5]
             
-            jData = getJSONPayload(node,mgmt,din,dout,type,desc)
+            jData = getJSONPayload(node,mgmt,din,dout,wtype,desc)
             createNode(url,jData,headers)
  
 
