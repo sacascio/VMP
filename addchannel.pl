@@ -1,9 +1,11 @@
 #!/usr/bin/perl -w
 
 use strict;
+use JSON;
 use Getopt::Std;
 use Spreadsheet::ParseExcel;
 
+# SDL Version 2, using XLS
 my $callsign;
 my $sourceip;
 my $type;
@@ -12,84 +14,71 @@ my $str;
 my %opts;
 my $fname;
 my $tname;
-my %cs_list;
 my $retcode;
 my $description;
-my $ss_cs;
+my $domain;
+my $sm;
+my $token;
 my $sd_only_1pro = 0;
 
-getopts('hi:t:s', \%opts);
+getopts('hi:t:sd:', \%opts);
 
 usage() if ( ! %opts );
-usage() if ( ! $opts{t} || !$opts{i} );
+usage() if ( ! $opts{t} || !$opts{i} || !$opts{d} );
 usage() if ( $opts{h} );
 
-$fname = $opts{i};
-$tname = $opts{t};
+$fname  = $opts{i};
+$tname  = $opts{t};
+$domain = $opts{d};
 
 if ( $opts{s} ) {
 	$sd_only_1pro = 1;
 }
 
-
+$sm = 'service-mgr.' . $domain;
+$token = gettoken($sm);
 $fname = create_input_file($fname,$tname);
+
 
 open(FILE,$fname) or die "Can't open $fname\n";
 open(ELOG,">elog.txt") or die "Can't open elog.txt\n";
-open(NEWCS,">callsigns") or die "Can't open callsigns\n";
-open(CSMAP,">csmapping") or die "Can't open csmapping\n";
+open(CS,">callsigns") or die "Can't open callsigns\n";
 
 while(<FILE>) {
 	chomp($_);
 	($description,$callsign,$sourceip,$type,$mcip) = split(/,/, $_);
 
-	# Replace underscore with dash in callsign
-	$callsign =~ s/_/-/g;
-	$callsign =~ s/\s+//g;
-	$callsign =~ s/\+/-PLUS/g;
-	$callsign =~ s/\!//g;
-	$callsign =~ s/\&//g;
-	$ss_cs = $callsign;
-
-	if ( exists $cs_list{$callsign} ) {
-		$callsign = getuniquecs($callsign);
-	} else {
-		$cs_list{$callsign} = 1;
-	}
-
-	# Print out NEW callsign value - might be equal to callsign provided in file
-	# This is needed so that we can map the old callsign to new callsign values in the provided spreadsheet.
-	
-	print CSMAP "$ss_cs,$callsign\n";
-
 	$type = uc($type);
 
-	if ( $mcip !~ /\d+\.\d+\.\d+\.\d+/ or $sourceip !~ /\d+\.\d+\.\d+\.\d+/ ) {
-		print ELOG "$_\n";
-		next;
-	}
+    print CS "$callsign\n";
 
     if ( $sd_only_1pro == 0 ) {
-	#if ( $type eq 'HD' ) { 
-	if ( $type =~ /9004/ ) { 
-		buildSDJsonFile($callsign,$sourceip,$mcip,$description);
-	} else {
-		buildHDJsonFile($callsign,$sourceip,$mcip,$description);
-	}
+	    if ( $type eq 'HD' ) { 
+	    #if ( $type =~ /4004/ ) { 
+	    	buildSDJsonFile($callsign,$sourceip,$mcip,$description);
+	    } else {
+	    	buildHDJsonFile($callsign,$sourceip,$mcip,$description);
+	    }
     } else {
-	buildSDJsonFile_1pro($callsign,$sourceip,$mcip,$description);
+	    buildSDJsonFile_1pro($callsign,$sourceip,$mcip,$description);
+    }
+
+    # if channel exists, skip
+    $retcode = channel_exists($callsign,$token,$sm);
+
+    if ( $retcode != 200 ) {
+	    ## If channel does not exist, add channel to V2P ##
+	    $retcode = addchannel($callsign,$token,$sm);
+
+	
+        	if ( $retcode != 200 ) {
+	        	print ELOG "CHANNEL CREATION FAILED: $_\n";
+	        } 
+    
+    } else {
+        print "Channel $callsign already exists in the system..Skipping...\n";
     }
 	
-
-	## Add channel to V2P ##
-	$retcode = addchannel($callsign);
-
-	
-	if ( $retcode != 200 ) {
-		print ELOG "CHANNEL CREATION FAILED: $_\n";
-	} else {
-		print NEWCS "$callsign\n";
-	}
 		
 	## Delete JSON build File	
 	unlink("build");
@@ -98,18 +87,33 @@ while(<FILE>) {
 
 close FILE;
 close ELOG;
-close NEWCS;
-close CSMAP;
+close CS;
 
 sub addchannel {
 # Token following the word Bearer comes from the PAM in /etc/opt/cisco/mos/public/token.json
 my $cs  = shift;
-`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2"  https://service-mgr.mos.hcvlny.cv.net:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
-my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2"  https://service-mgr.mos.hcvlny.cv.net:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
+my $t_token = shift;
+my $sm = shift;
 
+`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
+my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
+
+return $res;
 
 }
 
+sub channel_exists {
+
+my $cs  = shift;
+my $t_token = shift;
+my $sm = shift;
+
+
+my $res = `curl -w "%{http_code}" -o /dev/null -H "Authorization: Bearer $t_token" -ks https://$sm:8043/v2/channelsources/$cs `;
+
+return $res;
+
+}
 
 
 sub buildHDJsonFile {
@@ -133,7 +137,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.450k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9001",
+            "sourceUrl": "udp://$mc:5001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -142,7 +146,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.600k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9002",
+            "sourceUrl": "udp://$mc:5002",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -151,7 +155,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1000k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9003",
+            "sourceUrl": "udp://$mc:5003",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -160,7 +164,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1500k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9004",
+            "sourceUrl": "udp://$mc:5004",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -169,7 +173,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.2200k",
  	"sources": [
           {
-            "sourceUrl": "udp://$mc:9005",
+            "sourceUrl": "udp://$mc:5005",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -178,7 +182,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.4000k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9006",
+            "sourceUrl": "udp://$mc:5006",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -215,7 +219,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.300k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9001",
+            "sourceUrl": "udp://$mc:5001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -224,7 +228,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.625k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9002",
+            "sourceUrl": "udp://$mc:5002",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -233,7 +237,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.925k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9003",
+            "sourceUrl": "udp://$mc:5003",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -242,7 +246,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.1200k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9004",
+            "sourceUrl": "udp://$mc:5004",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -279,7 +283,7 @@ $str =  <<EOF;
         "profileRef": "smtenant_0.smstreamprofile.300k",
         "sources": [
           {
-            "sourceUrl": "udp://$mc:9001",
+            "sourceUrl": "udp://$mc:5001",
             "sourceIpAddr": "$sourceip"
           }
         ]
@@ -299,11 +303,12 @@ sub usage {
 
 print <<EOF;
 
-The following parameters are required: i
+The following parameters are required: 
 
-i:	Name of Excel 2007 input file ( ex. $0 -i file.xls )
+i:	Name of Excel input file ( ex. $0 -i file.xls )
 t:	Name of tab in the excel file to use
-s:	SD Build only (1 SD Profile, UDP 9001 )
+s:	SD Build only (1 SD Profile, UDP 5001 )
+d:      Domain name (ex. mos.hcvlny.cv.net)
 h:	Help message
 
 
@@ -312,33 +317,21 @@ EOF
 exit;
 }
 
-sub getuniquecs {
-my $cs = shift;
-my $v = 2;
-my $newcs = $cs;
-
-        while ( exists $cs_list{$newcs} ) {
-                $newcs = $cs . "-" . $v;
-                $v++;
-        }
-
-        $cs_list{$newcs} = 1;
-        return $newcs;
-
-}
-
 sub create_input_file {
 
 my $worksheet;
 my $fname = shift;
 my $tname = shift;
 my $filename = 'input_file_parsed.txt';
-
+my $haserrors = 0;
+my %cs_list;
+my $rownum;
 
 open(FILEN,">$filename") or die "Can't open $filename\n";
 
 my $parser   = Spreadsheet::ParseExcel->new();
 my $workbook = $parser->parse($fname);
+
 
 if ( !defined $workbook ) {
     die $parser->error(), ".\n";
@@ -350,17 +343,16 @@ if ( !defined $workbook ) {
         my ( $row_min, $row_max ) = $worksheet->row_range();
         $row_min++;
 
-
         for my $row ( $row_min .. $row_max ) {
-
-                my $c_description = $worksheet->get_cell( $row, 0 );
-                my $c_callsign    = $worksheet->get_cell( $row, 1 );
-                my $c_sourceip    = $worksheet->get_cell( $row, 4 );
-                my $c_type    = $worksheet->get_cell( $row, 3 );
-                my $c_mcip    = $worksheet->get_cell( $row, 2 );
+                $rownum = $row + 1;
+                my $c_description = $worksheet->get_cell( $row, 7 );
+                my $c_callsign    = $worksheet->get_cell( $row, 6 );
+                my $c_sourceip    = $worksheet->get_cell( $row, 20 );
+                my $c_type    = $worksheet->get_cell( $row, 8 );
+                my $c_mcip    = $worksheet->get_cell( $row, 20 );
                 next unless $c_callsign;
-
-                my $desc = $c_description->unformatted();
+               
+                my $desc = $c_description->unformatted(); 
                 my $cs   = $c_callsign->unformatted();
                 my $sip  = $c_sourceip->unformatted();
                 my $type = $c_type->unformatted();
@@ -369,11 +361,67 @@ if ( !defined $workbook ) {
                 $desc =~ s/,//g;
 
                 print FILEN "$desc,$cs,$sip,$type,$mcip\n";
+                
+                if ( $cs eq "" ) {
+                    print "No callsign defined on line $rownum\n";
+                }
+                # Error checking.  Must check for unique callsigns and ensure other fields are valid
+                #
+
+	            if ( exists $cs_list{$cs} ) {
+		            print "$cs is NOT Unique, rows $rownum,$cs_list{$cs} \n";
+                    $haserrors = 1;
+	            } else {
+                    if ( $cs ne "" ) {
+		                $cs_list{$cs} = $rownum;
+                    }
+	            }
+	
+                if ( $mcip !~ /\d+\.\d+\.\d+\.\d+/ ) {
+		            print "Invalid Multicast IP $mcip, row $rownum.  Please correct\n";
+                    $haserrors = 1;
+	            }
+                if ( $sip !~ /\d+\.\d+\.\d+\.\d+/ ) {
+                    $haserrors = 1;
+		            print "Invalid Source IP $sip, row $rownum.  Please correct\n";
+	            }
+	
+                # Check for invalid characters
+	            if ( $cs =~ /_|\s+|\+|\!|\&/ ) {
+                    $haserrors = 1;
+                    print "Invalid character(s) found in callsign $cs, row $rownum.  Please correct\n";
+                }
+
         }
 
 
 close FILEN;
 
-return $filename;
+if ( $haserrors == 1 ) {
+    print "Errors found in file.  Correct the errors and re-execute. NO CHANGES MADE..Exiting..\n";
+    exit(2);
+} else {
+   return $filename;
+}
 
+}
+
+sub gettoken {
+my $host = shift;
+
+my $token_file = 'token.json';
+`scp -o StrictHostKeyChecking=no admin\@$sm:/etc/opt/cisco/mos/public/$token_file $token_file > /dev/null 2>&1`;
+
+
+      my $json_text = do {
+      open(my $json_fh, "<:encoding(UTF-8)", $token_file) or die("Can't open \$token_file\": $!\n");
+      local $/;
+      <$json_fh>
+      };
+
+             my $json = JSON->new;
+             my $data = $json->decode($json_text);
+             my $token =  $data->{tokenMap}{defaultToken}{name};
+             unlink($token_file);
+             return $token;
 }
