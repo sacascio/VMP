@@ -11,7 +11,7 @@ my $domain;
 my $sm;
 my $token;
 
-getopts('hn:', \%opts);
+getopts('hn:d:', \%opts);
 
 usage() if ( ! %opts );
 usage() if ( ! $opts{n} || !$opts{d} );
@@ -89,6 +89,7 @@ exit;
 }
 
 sub gettoken {
+#return "ae3f5992cc054602be1346701aec723bbd4a4af69d510c6ada2f50455e5f9e9c";
 my $host = shift;
 
 my $token_file = 'token.json';

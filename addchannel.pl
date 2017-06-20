@@ -13,7 +13,6 @@ my $mcip;
 my $str;
 my %opts;
 my $fname;
-my $tname;
 my $retcode;
 my $description;
 my $domain;
@@ -24,11 +23,10 @@ my $sd_only_1pro = 0;
 getopts('hi:t:sd:', \%opts);
 
 usage() if ( ! %opts );
-usage() if ( ! $opts{t} || !$opts{i} || !$opts{d} );
+usage() if ( !$opts{i} || !$opts{d} );
 usage() if ( $opts{h} );
 
 $fname  = $opts{i};
-$tname  = $opts{t};
 $domain = $opts{d};
 
 if ( $opts{s} ) {
@@ -37,11 +35,31 @@ if ( $opts{s} ) {
 
 $sm = 'service-mgr.' . $domain;
 $token = gettoken($sm);
-$fname = create_input_file($fname,$tname);
+$fname = create_input_file($fname);
 
-open(FILE,$fname) or die "Can't open $fname\n";
 open(ELOG,">elog.txt") or die "Can't open elog.txt\n";
+open(FILE,$fname) or die "Can't open $fname\n";
 open(CS,">callsigns") or die "Can't open callsigns\n";
+
+# Build streaming Profiles if they don't exist
+my @profiles = (450,600,1000,1500,2200,4000,300,625,925,1200);
+
+foreach (@profiles) {
+
+	my $sp_exist = checkSP($_,$token,$sm);
+
+		if ( $sp_exist != 200 ) {
+        		$sp_exist = buildSP($_,$token,$sm);
+
+	                if ( $sp_exist == 200 ) {
+       		                 #print "Streaming Profile $_ built\n";
+               		 } else {
+                       		 print ELOG "Streaming Profile $_ not built\n";
+                	 }
+		}
+}
+
+
 
 while(<FILE>) {
 	chomp($_);
@@ -54,9 +72,9 @@ while(<FILE>) {
     if ( $sd_only_1pro == 0 ) {
 	    if ( $type eq 'HD' ) { 
 	    #if ( $type =~ /4004/ ) { 
-	    	buildSDJsonFile($callsign,$sourceip,$mcip,$description);
-	    } else {
 	    	buildHDJsonFile($callsign,$sourceip,$mcip,$description);
+	    } else {
+	    	buildSDJsonFile($callsign,$sourceip,$mcip,$description);
 	    }
     } else {
 	    buildSDJsonFile_1pro($callsign,$sourceip,$mcip,$description);
@@ -94,8 +112,10 @@ my $cs  = shift;
 my $t_token = shift;
 my $sm = shift;
 
-`curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
-my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
+my $res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build > /dev/null 2>&1`;
+#my $res = `curl -w "%{http_code}"  -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X POST -d \@build `;
+$res = `curl -w "%{http_code}" -o /dev/null -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build 2>/dev/null`;
+#my $res = `curl -w "%{http_code}" -k -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/channelsources/$cs -H Content-Type:application/json -X PUT -d \@build `;
 
 return $res;
 
@@ -304,8 +324,7 @@ print <<EOF;
 
 The following parameters are required: 
 
-i:	Name of Excel input file ( ex. $0 -i file.xls )
-t:	Name of tab in the excel file to use
+i:	Name of Excel input file ( ex. $0 -i file.csv )
 s:	SD Build only (1 SD Profile, UDP 4001 )
 d:      Domain name (ex. mos.hcvlny.cv.net)
 h:	Help message
@@ -318,19 +337,31 @@ exit;
 
 sub create_input_file {
 
-my $worksheet;
+#my $worksheet;
 my $fname = shift;
-my $tname = shift;
+#my $tname = shift;
 my $filename = 'input_file_parsed.txt';
 my $haserrors = 0;
 my %cs_list;
-my $rownum;
+my $desc;
+my $cs;
+my $sip;
+my $type;
+my $mcip;
+my $line;
+my $rownum = 0;
 
 open(FILEN,">$filename") or die "Can't open $filename\n";
+open(F,$fname);
 
+	while($line = <F>) {
+		$rownum++;
+		chomp($line);
+                ($desc,$cs,$mcip,$type,$sip) = split(/,/, $line);
+	
+=cut
 my $parser   = Spreadsheet::ParseExcel->new();
 my $workbook = $parser->parse($fname);
-
 
 if ( !defined $workbook ) {
     die $parser->error(), ".\n";
@@ -358,7 +389,7 @@ if ( !defined $workbook ) {
                 my $mcip = $c_mcip->unformatted();
 
                 $desc =~ s/,//g;
-
+=cut
                 print FILEN "$desc,$cs,$sip,$type,$mcip\n";
                 
                 if ( $cs eq "" ) {
@@ -391,9 +422,8 @@ if ( !defined $workbook ) {
                     print "Invalid character(s) found in callsign $cs, row $rownum.  Please correct\n";
                 }
 
-        }
 
-
+	}
 close FILEN;
 
 if ( $haserrors == 1 ) {
@@ -406,6 +436,7 @@ if ( $haserrors == 1 ) {
 }
 
 sub gettoken {
+#return "ae3f5992cc054602be1346701aec723bbd4a4af69d510c6ada2f50455e5f9e9c";
 my $host = shift;
 
 my $token_file = 'token.json';
@@ -424,3 +455,54 @@ my $token_file = 'token.json';
              unlink($token_file);
              return $token;
 }
+
+sub buildSP {
+my $str;
+my $rate;
+my $name;
+my $br = shift;
+my $t_token = shift;
+my $sm = shift;
+my $res;
+
+$rate = $br * 1000;
+$name = $br . 'k';
+$str .=  <<EOF;
+{
+ "name" : "$name",
+ "id" : "smtenant_0.smstreamprofile.$name",
+ "type" : "streamprofiles",
+ "externalId" : "/v2/streamprofiles/$name",
+ "properties" : {
+   "encodingType" : "H.264/AAC",
+   "bitrate" : "$rate"
+ }
+}
+EOF
+
+chomp($str);
+
+open(PROF,">prof");
+ print PROF "$str\n";
+close PROF;
+
+$res = `curl -k -w "%{http_code}" -o /dev/null -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/streamprofiles/$name -X POST -H Content-Type:application/json -d \@prof 2>/dev/null`;
+
+ unlink("prof");
+ return $res;
+}
+
+sub checkSP {
+
+my $br = shift;
+my $t_token = shift;
+my $sm = shift;
+
+$br .= 'k';
+
+my $res = `curl -k -w "%{http_code}" -o /dev/null -v -H "Authorization: Bearer $t_token"  https://$sm:8043/v2/streamprofiles/$br -X GET  2> /dev/null`;
+
+return $res;
+
+}
+
