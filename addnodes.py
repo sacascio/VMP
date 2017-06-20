@@ -14,21 +14,21 @@ import dns.resolver
 # Prepared by Salvatore Cascio (Cisco)
 # June 16, 2017
 # Version 1
-#
+##
 
-def getJSONPayload(node,mgmt,din,dout,wtype,desc):
+def getJSONPayload(node,mgmt,din,dout,wtype,desc,aic):
    
     jData = {}
     jData["name"] = node
     jData["id"]   = "smregion_0.smnode.%s" % node
     jData["type"] = "nodes"        
     jData["externalId"] = "/v2/regions/region-0/nodes/%s" % node
-    jData["properties"] = { "description" : desc, "adminState" :"maintenance", "zoneRef" : " smtenant_system.smzone.zone1", "aic" : None }
+    jData["properties"] = { "description" : desc, "adminState" :"inservice", "zoneRef" : "smtenant_system.smzone.zone-1", "aic" : aic }
     jData["properties"].update({ "image" : { "imgTag" : wtype, "personality" : "worker", "version" : "2.8"} })
     jData["properties"].update({"interfaces" : [{"type" : "mgmt","inet" : mgmt},{"type" : "data-in","inet" : din},{"type" : "data-out","inet" : dout}]})
-    
+   
     return jData     
-             
+	             
 
 def getvmptoken(smip):
     cmd = "cat /etc/opt/cisco/mos/public/token.json"
@@ -45,25 +45,19 @@ def getvmptoken(smip):
 def getsmip(domain):
     
     try:
-        answers = dns.resolver.query('service-mgr.%s' % domain)
+        answers = dns.resolver.query('ui.%s' % domain)
     except: 
         print "Unable to determine service manager IP address for domain %s" % domain 
         sys.exit(1)
 
-    for rdata in answers:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
-        result = sock.connect_ex((str(rdata),7001))
-        if result == 0:
-               return rdata
-
+    return answers[0]
+   
 def createNode(url,jData,headers):
-    myResponse = requests.put(url,verify=False,json=jData,headers=headers)
-    print (myResponse.content)
+    myResponse = requests.post(url,verify=False,json=jData,headers=headers)
+    return myResponse.status_code
     
 def main(argv):
  
-    
     try:
         opts,args = getopt.getopt(argv,"f:d:h",["file=","domain=","help"])
     except getopt.GetoptError as err:
@@ -111,8 +105,6 @@ def main(argv):
     # Get Token
     token = getvmptoken(smip)
     
-    headers = {'Content-Type' : 'application/json', 'Authorization' : 'Bearer %s' % token}
-    url = "https://%s:8043/v2/regions/region-0/nodes/%s" % (smip,nodename)
     
     with open(filename, 'r') as f:
         for line in f:
@@ -124,10 +116,17 @@ def main(argv):
             dout = entry[3]
             wtype = entry[4]
             desc = entry[5]
+	    aic  = entry[6]
             
-            jData = getJSONPayload(node,mgmt,din,dout,wtype,desc)
-            createNode(url,jData,headers)
- 
+            headers = {'Content-Type' : 'application/json', 'Authorization' : 'Bearer %s' % token}
+    	    url = "https://%s:8043/v2/regions/region-0/nodes/%s" % (smip,node)
+            jData = getJSONPayload(node,mgmt,din,dout,wtype,desc,aic)
+            status = createNode(url,jData,headers)
+
+	    if ( status == 200 ):
+		print "OK: Node %s created" % node
+	    else:
+		print "ERROR: Node %s NOT created" % node
 
 if __name__ == '__main__':
     main(sys.argv[1:])
