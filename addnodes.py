@@ -32,8 +32,8 @@ def getJSONPayload(node,mgmt,din,dout,wtype,desc):
 
 def getvmptoken(smip):
     cmd = "cat /etc/opt/cisco/mos/public/token.json"
-
-    ssh = subprocess.Popen(["ssh", "%s" % smip, cmd],
+    user = 'admin@%s' % smip
+    ssh = subprocess.Popen(["ssh", "%s" % user, cmd],
                        shell=False,
                        stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
