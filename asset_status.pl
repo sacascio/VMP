@@ -1,13 +1,33 @@
 #!/usr/bin/perl -w
 
 use strict;
-`./getsrc.pl`;
+use JSON;
+use Getopt::Std;
+
+my %opts;
+
+getopts('hd:w:', \%opts);
+
+usage() if ( ! %opts );
+usage() if ( !$opts{d} ) ;
+usage() if ( !$opts{w} ) ;
+
+my $domain = $opts{d};
+my $wf = $opts{w};
+
+`./getsrc.pl -d $domain`;
 
 my $callsign;
 my $res;
 my $detail;
 my $sourceip;
 my $mcip;
+
+my $rest_sm = 'controller.' . $domain;
+my $sm = 'service-mgr.' . $domain;
+
+my $token=gettoken($sm);
+
 # Parse out callsigns from asset_list
 #
 
@@ -19,13 +39,21 @@ while(<FILE>) {
 	chomp($_);
 	$_ =~ m/(.*),.*,.*/;
 	$callsign = $1;
-	#$res = `curl -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2" -ks https://service-mgr.mos.hcvlny.cv.net:7001/v1/assetWorkflows/live/assets/$callsign`;
-	$res = `curl -H "Authorization: Bearer c49d2ad386d45c41e5c1ca2bbfe531dab7136601d3cc01e3434b97b965118ac2" -ks https://10.249.35.221:7001/v1/assetWorkflows/live/assets/$callsign`;
+
+	$res = `curl -3 -ks https://$rest_sm:7001/v1/assetWorkflows/$wf/assets/$callsign`;
+
+	
+	if ( $res =~  /.* Asset metadata not found.*/ ) {
+		print OUT "$callsign,Fail,Asset not found in workflow $wf,NA,NA\n";
+		next;
+	}
 	$res =~ m/.*"sourceUrl":"udp:\/\/.*:\d+","sourceIp":"(\d+\.\d+\.\d+\.\d+)",".*/;
+
 	$sourceip = $1;
 
 	$res =~ m/.*"sourceUrl":"udp:\/\/(.*):\d+","sourceIp.*/;
 	$mcip = $1;
+
 
 	$res =~ m/.*captureStatus(.*)/;
 	$detail = $1;
@@ -54,7 +82,11 @@ my $br;
 
 		chomp($raw);
 
-		
+                if ( $raw eq '":[]}}' ) {
+                       return ("Pending State",$sourceip,$mcip);
+		}
+
+
 		if ( $raw =~ /CAPTURING/) {
 			return ("CAPTURING",$sourceip,$mcip);
 		}
@@ -67,8 +99,10 @@ my $br;
 				$message .= $m;
 			}
 
+	
 		$message =~ m/.*\[(.*)\].*/;
-		$message =  $1;
+	        $message =  $1;
+
 		@tmp = split(/\}/, $message);
 			foreach $m (@tmp) {
 				if ( $m =~ /reason/i ) {
@@ -86,8 +120,9 @@ my $br;
 
 
 			}
+
 			if ( ! defined($final) ) {
-				$final = $message;
+					$final = $message;
 			}
 
 			return ($final,$sourceip,$mcip);
@@ -100,16 +135,16 @@ sub udpMap {
 my $br = shift;
 
 my %hash = (
-		'450k'  => 'UDP 9001 (HD)',
-		'600k'  => 'UDP 9002 (HD)',
-		'1000k' => 'UDP 9003 (HD)',
-		'1500k' => 'UDP 9004 (HD)',
-		'2200k' => 'UDP 9005 (HD)',
-		'4000k' => 'UDP 9006 (HD)',
-		'300k'  => 'UDP 9001 (SD)',
-		'625k'  => 'UDP 9002 (SD)',
-		'925k'  => 'UDP 9003 (SD)',
-		'1200k' => 'UDP 9004 (SD)'
+		'450k'  => 'UDP 4001 (HD)',
+		'600k'  => 'UDP 4002 (HD)',
+		'1000k' => 'UDP 4003 (HD)',
+		'1500k' => 'UDP 4004 (HD)',
+		'2200k' => 'UDP 4005 (HD)',
+		'4000k' => 'UDP 4006 (HD)',
+		'300k'  => 'UDP 4001 (SD)',
+		'625k'  => 'UDP 4002 (SD)',
+		'925k'  => 'UDP 4003 (SD)',
+		'1200k' => 'UDP 4004 (SD)'
 
 		);
 
@@ -117,3 +152,40 @@ my %hash = (
 return $hash{$br};
 
 }
+
+sub gettoken {
+
+my $host = shift;
+
+my $token_file = 'token.json';
+`scp -o StrictHostKeyChecking=no admin\@$sm:/etc/opt/cisco/mos/public/$token_file $token_file > /dev/null 2>&1`;
+
+
+      my $json_text = do {
+      open(my $json_fh, "<:encoding(UTF-8)", $token_file) or die("Can't open \$token_file\": $!\n");
+      local $/;
+      <$json_fh>
+      };
+
+             my $json = JSON->new;
+             my $data = $json->decode($json_text);
+             my $token =  $data->{tokenMap}{defaultToken}{name};
+             unlink($token_file);
+             return $token;
+}
+
+sub usage {
+
+print <<EOF;
+
+The following parameters are required:
+
+d:      Domain name (ex. mos.hcvlny.cv.net)
+w:	Workflow name (ex. live)
+h:      Help message
+
+EOF
+
+exit;
+}
+
