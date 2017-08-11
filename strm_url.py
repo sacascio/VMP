@@ -100,6 +100,8 @@ def main(argv):
         print "Domain not specified (-d or --domain)"
         sys.exit(1)
 
+    # Squelch SSL warnings for no certificate
+    requests.packages.urllib3.disable_warnings()
     smip = getsmip(domain)
     if smip is None:
         print "Could not determine service manager IP.  Exiting"
